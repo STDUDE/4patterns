@@ -9,16 +9,23 @@ import main.requests.RequestCreator;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import projects.Task;
+import users.Command;
+import users.Manager;
+import users.User;
 
-/**
- * Created by Antony on 13.05.2016.
- */
+import java.sql.Date;
+import java.sql.ResultSet;
+
 public class Work {
     private static String choice;
     private static String choiceBook;
     private static Scanner sc = new Scanner(System.in);
     private static RequestCreator requestCreator = new RequestCreator();
     private static IRequest iRequest;
+    private static Scanner scanner = new Scanner(System.in);
+    private static DatabaseSupport db = new DatabaseSupport();
+    private static ArrayList<Command> commands = new ArrayList();
 
     public static void runConsol() throws ClassNotFoundException, SQLException {
         while (true) {
@@ -87,8 +94,30 @@ public class Work {
             printMenu3();
             choice = sc.nextLine();
             if (choice.compareTo("1") == 0) {
-
+                db.connect();
+                ResultSet res = db.selectFrom("SELECT * FROM task WHERE status = false");
+                try {
+                    while(res.next()){
+                        System.out.println(res.getInt("id") + ") " + res.getString("content"));
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                db.closeConnect();
+                setEmployeToProject(scanner.nextInt());
             } else if (choice.compareTo("2") == 0) {
+                db.connect();
+                ResultSet result = db.selectFrom("SELECT * FROM task WHERE status = false");
+                try {
+                    while(result.next()){
+                        System.out.println(result.getInt("id") + ") " + result.getString("content"));
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                db.closeConnect();
+                endTask(scanner.nextInt());
+            }else if (choice.compareTo("3") == 0){
                 return;
             }
         }
@@ -115,8 +144,61 @@ public class Work {
         System.out.println("4.Назад");
     }
     public static void printMenu3() {//метод вывода меню на экран
-        System.out.println("Введите ваш выбор:");
-        System.out.println("1.Обновить статус задачи");
-        System.out.println("2.Назад");
+        System.out.println("1)Поставить работников на задачу\n2)Завершить задачу\n3)Назад");
+    }
+
+    public static void endTask(int task){
+        Task taskObj = null;
+        db.connect();
+        ResultSet res = db.selectFrom("SELECT * FROM task WHERE id = " + task);
+        try {
+            if(res.first()){
+                taskObj = new Task(res.getString("content"), res.getDate("deadline"), res.getInt("id_project"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        db.closeConnect();
+        db.connect();
+        res = db.selectFrom("SELECT * FROM employee WHERE task = " + task);
+        try {
+            while(res.next()){
+                new User(res.getString("fname"), res.getString("lname"), res.getString("post"), res.getInt("task"), taskObj);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        db.closeConnect();
+        taskObj.setStatus(true);
+    }
+
+    public static void setEmployeToProject(int task){
+
+        ArrayList emloyees = new ArrayList();
+        new Mediator().setectEmployees(emloyees);
+        while(true) {
+            System.out.println("1)Выбрать работника\n2)Поставить работников на задачу\n3)Назад");
+            scanner = new Scanner(System.in);
+            switch (scanner.nextLine()) {
+                case "1":
+                    choiceEmploye(emloyees);
+                    break;
+                case "2":
+                    setEmployeesToProject(task);
+                    break;
+                case "3":
+                    return;
+            }
+        }
+    }
+
+    public static void choiceEmploye(ArrayList employes){
+        int choice = scanner.nextInt();
+        commands.add(new Manager((User)employes.get(choice - 1)));
+    }
+
+    public static void setEmployeesToProject(int task){
+        for(Command c : commands)
+            c.setToTask(task);
     }
 }
